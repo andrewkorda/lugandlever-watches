@@ -1,0 +1,30 @@
+# Environment & Secrets
+.env
+*.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes / local mounts
+deploy/data/
+
+# Backend (Gradle / Java)
+backend/.gradle/
+backend/build/
+backend/out/
+backend/bin/
+!backend/gradle/wrapper/gradle-wrapper.jar
+
+# Frontend (Node / Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace

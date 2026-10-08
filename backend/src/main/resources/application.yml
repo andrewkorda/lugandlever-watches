@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: lugandlever-backend
+  profiles:
+    active: docker
