@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 
 import { fetchCatalog, type Product } from './services/catalogService';
+import { useCart } from './features/cart/CartContext';
+import { CartDrawer } from './features/cart/CartDrawer';
 
 export default function App() {
   const [activeCategory, setActiveCategory] = useState<'ALL' | 'FIELD' | 'DIVER' | 'CHRONO'>('ALL');
@@ -33,6 +35,9 @@ export default function App() {
     title: '',
     subtitle: ''
   });
+
+  // Cart Drawer Actions
+  const { addItem, openCart, itemCount } = useCart();
 
   const openAuth = (title: string, subtitle: string) => {
     setAuthModal({ open: true, title, subtitle });
@@ -143,12 +148,13 @@ export default function App() {
               <User className="w-5 h-5" />
             </button>
             <button 
-              onClick={() => openAuth('Acquisition Bag', 'Sign in to access your saved items and secure cart.')}
+              onClick={openCart}
               className="hover:text-orange-600 transition relative"
+              aria-label="View acquisition bag"
             >
               <ShoppingBag className="w-5 h-5" />
               <span className="absolute -top-1.5 -right-2 bg-orange-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                0
+                {itemCount}
               </span>
             </button>
           </div>
@@ -353,7 +359,7 @@ export default function App() {
                         Specs
                       </button>
                       <button 
-                        onClick={() => openAuth('Acquire Timepiece', 'Sign in to your collector account to secure allocation and register your warranty.')}
+                        onClick={() => addItem(watch)}
                         className="px-4 py-2 bg-zinc-950 hover:bg-orange-600 text-white text-xs font-display font-bold uppercase tracking-wider transition flex items-center gap-1.5"
                       >
                         Buy Now
@@ -410,7 +416,7 @@ export default function App() {
                     <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
                       <span className="font-display font-bold text-base text-zinc-950">${item.price} {item.currency}</span>
                       <button 
-                        onClick={() => openAuth('Order Gear', 'Sign in or register to complete your order.')}
+                        onClick={() => addItem(item, item.category === 'STRAP' ? '20mm' : undefined)}
                         className="text-xs font-display font-bold uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center gap-1"
                       >
                         Acquire <ArrowRight className="w-3 h-3" />
@@ -577,8 +583,8 @@ export default function App() {
               </div>
               <button 
                 onClick={() => {
+                  addItem(selectedProduct);
                   setSelectedProduct(null);
-                  openAuth('Warranty Allocation', 'Sign in or register to complete order.');
                 }}
                 className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-display font-bold text-xs uppercase tracking-wider transition"
               >
@@ -645,6 +651,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* 9. Slide-Out Acquisition Bag */}
+      <CartDrawer />
 
     </div>
   );
