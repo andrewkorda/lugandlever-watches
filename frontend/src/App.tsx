@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Logo } from './components/Logo';
 import { 
   ArrowRight, 
   Lock, 
-  SlidersHorizontal, 
   ShieldCheck, 
   RotateCcw, 
   Clock, 
@@ -14,11 +13,20 @@ import {
   X,
   Play
 } from 'lucide-react';
-import { FEATURED_PRODUCTS, ACCESSORIES } from './data/catalog';
-import type { Product } from './data/catalog';
+
+import { fetchCatalog, type Product } from './services/catalogService';
 
 export default function App() {
-  const [activeCategory, setActiveCategory] = useState<'all' | 'field' | 'diver' | 'chrono' | 'gear'>('all');
+  const [activeCategory, setActiveCategory] = useState<'ALL' | 'FIELD' | 'DIVER' | 'CHRONO'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Dynamic Catalog State
+  const [watches, setWatches] = useState<Product[]>([]);
+  const [accessories, setAccessories] = useState<Product[]>([]);
+  const [loadingWatches, setLoadingWatches] = useState(true);
+  const [loadingAccessories, setLoadingAccessories] = useState(true);
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; title: string; subtitle: string }>({
     open: false,
@@ -30,13 +38,26 @@ export default function App() {
     setAuthModal({ open: true, title, subtitle });
   };
 
-  const filteredProducts = FEATURED_PRODUCTS.filter(p => {
-    if (activeCategory === 'all') return true;
-    if (activeCategory === 'field') return p.name.toLowerCase().includes('field');
-    if (activeCategory === 'diver') return p.name.toLowerCase().includes('diver');
-    if (activeCategory === 'chrono') return p.name.toLowerCase().includes('chrono');
-    return false;
-  });
+  // 1. Dynamically fetch Watches on category change or search query
+  useEffect(() => {
+    setLoadingWatches(true);
+    fetchCatalog('WATCH', activeCategory, searchQuery)
+      .then((data) => setWatches(data))
+      .catch((err) => console.error('Failed to load watches:', err))
+      .finally(() => setLoadingWatches(false));
+  }, [activeCategory, searchQuery]);
+
+  // 2. Dynamically fetch Straps & Accessories once on mount
+  useEffect(() => {
+    setLoadingAccessories(true);
+    Promise.all([
+      fetchCatalog('STRAP'),
+      fetchCatalog('ACCESSORY')
+    ])
+      .then(([straps, gear]) => setAccessories([...straps, ...gear]))
+      .catch((err) => console.error('Failed to load accessories:', err))
+      .finally(() => setLoadingAccessories(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 flex flex-col">
@@ -89,9 +110,32 @@ export default function App() {
 
           {/* Action Icons */}
           <div className="flex items-center gap-5 text-zinc-800">
-            <button className="hover:text-orange-600 transition">
-              <Search className="w-5 h-5" />
-            </button>
+            {/* Interactive Search Field */}
+            <div className="relative flex items-center">
+              {isSearchOpen ? (
+                <div className="flex items-center border border-zinc-300 rounded-sm bg-white px-2 py-1">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search caliber, dial..."
+                    autoFocus
+                    className="text-xs text-zinc-900 outline-none w-36 sm:w-48"
+                  />
+                  <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}>
+                    <X className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" />
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setIsSearchOpen(true)}
+                  className="hover:text-orange-600 transition"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
             <button 
               onClick={() => openAuth('Customer Account', 'Sign in to review purchase history and track warranty certificates.')}
               className="hover:text-orange-600 transition flex items-center gap-1.5"
@@ -155,7 +199,10 @@ export default function App() {
                 Discover Collection <ArrowRight className="w-4 h-4" />
               </a>
               <button 
-                onClick={() => setSelectedProduct(FEATURED_PRODUCTS[1])}
+                onClick={() => {
+                  const diver = watches.find(w => w.subCategory === 'DIVER') || watches[0];
+                  if (diver) setSelectedProduct(diver);
+                }}
                 className="px-8 py-4 border border-zinc-500 hover:border-white text-white transition flex items-center gap-2"
               >
                 <Play className="w-3.5 h-3.5 fill-current" /> Watch Film & Specs
@@ -215,10 +262,10 @@ export default function App() {
 
           <div className="flex flex-wrap gap-2 text-xs font-display font-bold uppercase tracking-wider">
             {[
-              { id: 'all', label: 'All Watches' },
-              { id: 'field', label: 'Field' },
-              { id: 'diver', label: 'Diver' },
-              { id: 'chrono', label: 'Chronograph' }
+              { id: 'ALL', label: 'All Watches' },
+              { id: 'FIELD', label: 'Field' },
+              { id: 'DIVER', label: 'Diver' },
+              { id: 'CHRONO', label: 'Chronograph' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -235,67 +282,90 @@ export default function App() {
           </div>
         </div>
 
-        {/* Product Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 pt-12">
-          {filteredProducts.map((watch) => (
-            <div 
-              key={watch.id}
-              className="group flex flex-col bg-white border border-zinc-200 hover:border-zinc-900 transition-all duration-300"
-            >
-              {/* Image Frame */}
-              <div className="relative aspect-square bg-[#f8f8f9] overflow-hidden p-8 flex items-center justify-center">
-                <img 
-                  src={watch.imageUrl} 
-                  alt={watch.name}
-                  className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" 
-                />
-                {watch.badge && (
-                  <span className="absolute top-4 left-4 bg-zinc-950 text-white text-[10px] font-display font-bold uppercase tracking-widest px-2.5 py-1">
-                    {watch.badge}
-                  </span>
-                )}
+        {/* Dynamic Product Cards Grid */}
+        {loadingWatches ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 pt-12">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="animate-pulse border border-zinc-200 p-6 space-y-4">
+                <div className="aspect-square bg-zinc-100 rounded-sm" />
+                <div className="h-4 bg-zinc-200 w-1/3" />
+                <div className="h-6 bg-zinc-200 w-3/4" />
+                <div className="h-4 bg-zinc-100 w-full" />
               </div>
-
-              {/* Product Info */}
-              <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  <div className="text-[11px] font-display font-semibold uppercase tracking-widest text-zinc-500">
-                    Automatic Caliber
-                  </div>
-                  <h3 className="font-display font-bold text-lg text-zinc-950 uppercase mt-1 group-hover:text-orange-600 transition">
-                    {watch.name}
-                  </h3>
-                  <div className="text-xs text-zinc-500 mt-2 space-y-1">
-                    <div><span className="font-medium text-zinc-700">Movement:</span> {watch.specs.movement}</div>
-                    <div><span className="font-medium text-zinc-700">Dimensions:</span> {watch.specs.diameter} Ø · {watch.specs.lugToLug} lug-to-lug</div>
-                  </div>
+            ))}
+          </div>
+        ) : watches.length === 0 ? (
+          <div className="py-16 text-center text-zinc-500 text-sm">
+            No timepieces match the selected filter or search query.
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 pt-12">
+            {watches.map((watch) => (
+              <div 
+                key={watch.id}
+                className="group flex flex-col bg-white border border-zinc-200 hover:border-zinc-900 transition-all duration-300"
+              >
+                {/* Image Frame */}
+                <div className="relative aspect-square bg-[#f8f8f9] overflow-hidden p-8 flex items-center justify-center">
+                  <img 
+                    src={watch.imageUrl} 
+                    alt={watch.name}
+                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" 
+                  />
+                  {watch.badge && (
+                    <span className="absolute top-4 left-4 bg-zinc-950 text-white text-[10px] font-display font-bold uppercase tracking-widest px-2.5 py-1">
+                      {watch.badge}
+                    </span>
+                  )}
                 </div>
 
-                <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
-                  <div className="font-display font-extrabold text-lg text-zinc-950">
-                    ${watch.price} <span className="text-xs font-normal text-zinc-500">CAD</span>
+                {/* Product Info */}
+                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="text-[11px] font-display font-semibold uppercase tracking-widest text-zinc-500">
+                      {watch.subCategory || 'Mechanical Caliber'}
+                    </div>
+                    <h3 className="font-display font-bold text-lg text-zinc-950 uppercase mt-1 group-hover:text-orange-600 transition">
+                      {watch.name}
+                    </h3>
+                    <div className="text-xs text-zinc-500 mt-2 space-y-1">
+                      {watch.specs?.movement && (
+                        <div><span className="font-medium text-zinc-700">Movement:</span> {String(watch.specs.movement)}</div>
+                      )}
+                      {(watch.specs?.diameter || watch.specs?.lugToLug) && (
+                        <div>
+                          <span className="font-medium text-zinc-700">Dimensions:</span> {String(watch.specs.diameter || '')} Ø {watch.specs.lugToLug ? `· ${String(watch.specs.lugToLug)} lug-to-lug` : ''}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setSelectedProduct(watch)}
-                      className="px-3 py-2 border border-zinc-300 text-zinc-700 hover:border-zinc-950 hover:text-zinc-950 text-xs font-display font-bold uppercase tracking-wider transition"
-                    >
-                      Specs
-                    </button>
-                    <button 
-                      onClick={() => openAuth('Acquire Timepiece', 'Sign in to your collector account to secure allocation and register your warranty.')}
-                      className="px-4 py-2 bg-zinc-950 hover:bg-orange-600 text-white text-xs font-display font-bold uppercase tracking-wider transition flex items-center gap-1.5"
-                    >
-                      Buy Now
-                    </button>
+                  <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+                    <div className="font-display font-extrabold text-lg text-zinc-950">
+                      ${watch.price} <span className="text-xs font-normal text-zinc-500">{watch.currency}</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setSelectedProduct(watch)}
+                        className="px-3 py-2 border border-zinc-300 text-zinc-700 hover:border-zinc-950 hover:text-zinc-950 text-xs font-display font-bold uppercase tracking-wider transition"
+                      >
+                        Specs
+                      </button>
+                      <button 
+                        onClick={() => openAuth('Acquire Timepiece', 'Sign in to your collector account to secure allocation and register your warranty.')}
+                        className="px-4 py-2 bg-zinc-950 hover:bg-orange-600 text-white text-xs font-display font-bold uppercase tracking-wider transition flex items-center gap-1.5"
+                      >
+                        Buy Now
+                      </button>
+                    </div>
                   </div>
+
                 </div>
-
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
       </section>
 
@@ -314,35 +384,43 @@ export default function App() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            {ACCESSORIES.map(item => (
-              <div key={item.id} className="bg-white border border-zinc-200 flex flex-col sm:flex-row overflow-hidden group">
-                <div className="sm:w-1/2 aspect-square bg-[#f8f8f9] p-4 flex items-center justify-center overflow-hidden">
-                  <img 
-                    src={item.imageUrl} 
-                    alt={item.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  />
-                </div>
-                <div className="sm:w-1/2 p-6 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[10px] font-display font-bold uppercase tracking-widest text-zinc-400">Atelier Accessory</span>
-                    <h4 className="font-display font-bold text-base uppercase text-zinc-950 mt-1">{item.name}</h4>
-                    <p className="text-xs text-zinc-500 mt-2">{item.shortDesc}</p>
-                  </div>
-                  <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
-                    <span className="font-display font-bold text-base text-zinc-950">${item.price} CAD</span>
-                    <button 
-                      onClick={() => openAuth('Order Gear', 'Sign in or register to complete your order.')}
-                      className="text-xs font-display font-bold uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center gap-1"
-                    >
-                      Acquire <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
+          {loadingAccessories ? (
+            <div className="grid md:grid-cols-2 gap-8">
+              {[1, 2].map((n) => (
+                <div key={n} className="animate-pulse bg-white border border-zinc-200 h-48" />
+              ))}
             </div>
-            ))}
-          </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-8">
+              {accessories.map(item => (
+                <div key={item.id} className="bg-white border border-zinc-200 flex flex-col sm:flex-row overflow-hidden group">
+                  <div className="sm:w-1/2 aspect-square bg-[#f8f8f9] p-4 flex items-center justify-center overflow-hidden">
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
+                  </div>
+                  <div className="sm:w-1/2 p-6 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-display font-bold uppercase tracking-widest text-zinc-400">Atelier Accessory</span>
+                      <h4 className="font-display font-bold text-base uppercase text-zinc-950 mt-1">{item.name}</h4>
+                      <p className="text-xs text-zinc-500 mt-2">{item.shortDescription}</p>
+                    </div>
+                    <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+                      <span className="font-display font-bold text-base text-zinc-950">${item.price} {item.currency}</span>
+                      <button 
+                        onClick={() => openAuth('Order Gear', 'Sign in or register to complete your order.')}
+                        className="text-xs font-display font-bold uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center gap-1"
+                      >
+                        Acquire <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -407,7 +485,7 @@ export default function App() {
           <div className="lg:col-span-2 space-y-4">
             <Logo className="h-16" light={true} />
             <p className="text-[12px] leading-relaxed text-zinc-400 max-w-sm pt-2">
-            A curated destination for mechanical watch enthusiasts. We source and deliver distinctive tool watches, premium straps, and everyday horological gear directly to your door.
+              A curated destination for mechanical watch enthusiasts. We source and deliver distinctive tool watches, premium straps, and everyday horological gear directly to your door.
             </p>
             <div className="text-[11px] text-zinc-500 font-medium">
               Ontario, Canada &nbsp;·&nbsp; Community driven passion for their timepieces
@@ -483,31 +561,19 @@ export default function App() {
             </div>
 
             <div className="mt-6 border-t border-b border-zinc-200 py-4 divide-y divide-zinc-100 text-xs">
-              <div className="py-2 flex justify-between">
-                <span className="text-zinc-500 font-medium">Case Diameter:</span>
-                <span className="font-semibold text-zinc-900">{selectedProduct.specs.diameter}</span>
-              </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-zinc-500 font-medium">Lug-to-Lug Distance:</span>
-                <span className="font-semibold text-zinc-900">{selectedProduct.specs.lugToLug}</span>
-              </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-zinc-500 font-medium">Thickness:</span>
-                <span className="font-semibold text-zinc-900">{selectedProduct.specs.thickness}</span>
-              </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-zinc-500 font-medium">Caliber:</span>
-                <span className="font-semibold text-zinc-900">{selectedProduct.specs.movement}</span>
-              </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-zinc-500 font-medium">Water Resistance:</span>
-                <span className="font-semibold text-zinc-900">{selectedProduct.specs.waterResistance}</span>
-              </div>
+              {selectedProduct.specs && Object.entries(selectedProduct.specs).map(([key, val]) => (
+                <div key={key} className="py-2 flex justify-between">
+                  <span className="text-zinc-500 font-medium capitalize">
+                    {key.replace(/([A-Z])/g, ' $1')}:
+                  </span>
+                  <span className="font-semibold text-zinc-900">{String(val)}</span>
+                </div>
+              ))}
             </div>
 
             <div className="mt-6 flex justify-between items-center">
               <div className="font-display font-extrabold text-xl text-zinc-950">
-                ${selectedProduct.price} <span className="text-xs font-normal text-zinc-500">CAD</span>
+                ${selectedProduct.price} <span className="text-xs font-normal text-zinc-500">{selectedProduct.currency}</span>
               </div>
               <button 
                 onClick={() => {

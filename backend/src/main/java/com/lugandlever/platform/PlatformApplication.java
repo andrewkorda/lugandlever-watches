@@ -1,4 +1,4 @@
-package com.horology.platform;
+package com.lugandlever.platform;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
