@@ -25,7 +25,12 @@ CREATE INDEX idx_products_specs ON products USING gin(specs);
 -- Full-Text Search index across name, sub_category, and description
 ALTER TABLE products ADD COLUMN search_vector tsvector
     GENERATED ALWAYS AS (
-        to_tsvector('english', coalesce(name, '') || ' ' || coalesce(sub_category, '') || ' ' || coalesce(short_description, ''))
+        to_tsvector('english', 
+            coalesce(name, '') || ' ' || 
+            coalesce(sub_category, '') || ' ' || 
+            coalesce(short_description, '') || ' ' ||
+            coalesce(specs::text, '')
+        )
     ) STORED;
 
 CREATE INDEX idx_products_search ON products USING gin(search_vector);
