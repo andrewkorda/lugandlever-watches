@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Link } from 'react-router-dom';
 import { Logo } from './components/Logo';
 import { ProductCarousel, type CarouselTab } from './components/ProductCarousel';
+import { ScrollToTop } from './components/ScrollToTop';
 import { CatalogPage } from './pages/CatalogPage';
 import { 
   Lock, 
@@ -82,6 +83,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <div className="min-h-screen bg-white text-zinc-900 flex flex-col">
         
         {/* 1. Global Utility Bar */}
