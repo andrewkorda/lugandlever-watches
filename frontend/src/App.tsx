@@ -18,16 +18,29 @@ import { fetchCatalog, type Product } from './services/catalogService';
 import { useCart } from './features/cart/CartContext';
 import { CartDrawer } from './features/cart/CartDrawer';
 
+// 1. Move hook outside the component so it complies with React's Rules of Hooks
+function useDebounce<T>(value: T, delay: number = 300): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function App() {
   const [activeCategory, setActiveCategory] = useState<'ALL' | 'FIELD' | 'DIVER' | 'CHRONO'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Debounce user keystrokes by 300ms
+  const debouncedQuery = useDebounce(searchQuery, 300);
 
   // Dynamic Catalog State
   const [watches, setWatches] = useState<Product[]>([]);
   const [accessories, setAccessories] = useState<Product[]>([]);
   const [loadingWatches, setLoadingWatches] = useState(true);
   const [loadingAccessories, setLoadingAccessories] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; title: string; subtitle: string }>({
@@ -43,16 +56,19 @@ export default function App() {
     setAuthModal({ open: true, title, subtitle });
   };
 
-  // 1. Dynamically fetch Watches on category change or search query
+  // Fetch Watches dynamically when category or debounced search changes
   useEffect(() => {
-    setLoadingWatches(true);
-    fetchCatalog('WATCH', activeCategory, searchQuery)
+    setIsSearching(true);
+    fetchCatalog('WATCH', activeCategory, debouncedQuery)
       .then((data) => setWatches(data))
       .catch((err) => console.error('Failed to load watches:', err))
-      .finally(() => setLoadingWatches(false));
-  }, [activeCategory, searchQuery]);
+      .finally(() => {
+        setLoadingWatches(false);
+        setIsSearching(false);
+      });
+  }, [activeCategory, debouncedQuery]);
 
-  // 2. Dynamically fetch Straps & Accessories once on mount
+  // Fetch Straps & Accessories once on mount
   useEffect(() => {
     setLoadingAccessories(true);
     Promise.all([
@@ -63,6 +79,8 @@ export default function App() {
       .catch((err) => console.error('Failed to load accessories:', err))
       .finally(() => setLoadingAccessories(false));
   }, []);
+
+  // (Delete lines 66-73 where useDebounce was nested inside App)
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 flex flex-col">
@@ -115,50 +133,32 @@ export default function App() {
 
           {/* Action Icons */}
           <div className="flex items-center gap-5 text-zinc-800">
-            {/* Interactive Search Field */}
-            <div className="relative flex items-center">
-              {isSearchOpen ? (
-                <div className="flex items-center border border-zinc-300 rounded-sm bg-white px-2 py-1">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search caliber, dial..."
-                    autoFocus
-                    className="text-xs text-zinc-900 outline-none w-36 sm:w-48"
-                  />
-                  <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}>
-                    <X className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-700" />
-                  </button>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => setIsSearchOpen(true)}
-                  className="hover:text-orange-600 transition"
-                >
-                  <Search className="w-5 h-5" />
-                </button>
-              )}
+              {/* Global Site Search Trigger */}
+              <button 
+                onClick={() => openAuth('Site Search', 'Global site discovery for articles, meetup schedules, and archive documentation is coming soon.')}
+                className="hover:text-orange-600 transition"
+                aria-label="Search website"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+
+              <button 
+                onClick={() => openAuth('Customer Account', 'Sign in to review purchase history and track warranty certificates.')}
+                className="hover:text-orange-600 transition flex items-center gap-1.5"
+              >
+                <User className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={openCart}
+                className="hover:text-orange-600 transition relative"
+                aria-label="View acquisition bag"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                <span className="absolute -top-1.5 -right-2 bg-orange-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {itemCount}
+                </span>
+              </button>
             </div>
-
-            <button 
-              onClick={() => openAuth('Customer Account', 'Sign in to review purchase history and track warranty certificates.')}
-              className="hover:text-orange-600 transition flex items-center gap-1.5"
-            >
-              <User className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={openCart}
-              className="hover:text-orange-600 transition relative"
-              aria-label="View acquisition bag"
-            >
-              <ShoppingBag className="w-5 h-5" />
-              <span className="absolute -top-1.5 -right-2 bg-orange-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {itemCount}
-              </span>
-            </button>
-          </div>
-
         </div>
       </header>
 
@@ -252,13 +252,13 @@ export default function App() {
         </div>
       </section>
 
-      {/* 5. Primary Catalog Grid (The Hamilton Product Wall) */}
-      <section id="timepieces" className="max-w-7xl mx-auto px-6 py-20">
+      {/* 5. Primary Catalog Grid */}
+      <section id="timepieces" className="w-full max-w-7xl mx-auto px-6 py-20">
         
-        {/* Category Filter Tabs */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-zinc-200 pb-6 gap-6">
-          <div>
-            <span className="text-[11px] font-display font-bold uppercase tracking-[0.2em] text-orange-600">
+        {/* Category Filter Tabs & Dedicated Catalog Search Toolbar */}
+        <div className="w-full flex flex-col md:flex-row md:items-end justify-between border-b border-zinc-200 pb-6 gap-6">
+          <div className="shrink-0">
+            <span className="text-[11px] font-display font-bold uppercase tracking-[0.2em] text-orange-600 block">
               The Catalog
             </span>
             <h2 className="font-display font-black text-3xl uppercase tracking-tight text-zinc-950 mt-1">
@@ -266,112 +266,148 @@ export default function App() {
             </h2>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs font-display font-bold uppercase tracking-wider">
-            {[
-              { id: 'ALL', label: 'All Watches' },
-              { id: 'FIELD', label: 'Field' },
-              { id: 'DIVER', label: 'Diver' },
-              { id: 'CHRONO', label: 'Chronograph' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveCategory(tab.id as any)}
-                className={`px-4 py-2 border transition ${
-                  activeCategory === tab.id 
-                    ? 'bg-zinc-950 text-white border-zinc-950' 
-                    : 'bg-white text-zinc-600 border-zinc-300 hover:border-zinc-950 hover:text-zinc-950'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          {/* Right Toolbar: Fixed Width & Layout Anchoring */}
+          <div className="w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 shrink-0">
+            {/* Search Input with explicit fixed desktop width */}
+            <div className="relative flex items-center w-full sm:w-64 shrink-0">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search caliber, dial, ref..."
+                className="w-full pl-9 pr-8 py-2 border border-zinc-300 text-xs text-zinc-900 bg-white placeholder-zinc-400 focus:border-zinc-950 focus:outline-none transition"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 text-zinc-400 hover:text-zinc-700"
+                  aria-label="Clear catalog search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Buttons */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-display font-bold uppercase tracking-wider shrink-0">
+              {[
+                { id: 'ALL', label: 'All Watches' },
+                { id: 'FIELD', label: 'Field' },
+                { id: 'DIVER', label: 'Diver' },
+                { id: 'CHRONO', label: 'Chronograph' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveCategory(tab.id as any)}
+                  className={`px-4 py-2 border whitespace-nowrap transition ${
+                    activeCategory === tab.id 
+                      ? 'bg-zinc-950 text-white border-zinc-950' 
+                      : 'bg-white text-zinc-600 border-zinc-300 hover:border-zinc-950 hover:text-zinc-950'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Dynamic Product Cards Grid */}
-        {loadingWatches ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 pt-12">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="animate-pulse border border-zinc-200 p-6 space-y-4">
-                <div className="aspect-square bg-zinc-100 rounded-sm" />
-                <div className="h-4 bg-zinc-200 w-1/3" />
-                <div className="h-6 bg-zinc-200 w-3/4" />
-                <div className="h-4 bg-zinc-100 w-full" />
-              </div>
-            ))}
-          </div>
-        ) : watches.length === 0 ? (
-          <div className="py-16 text-center text-zinc-500 text-sm">
-            No timepieces match the selected filter or search query.
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 pt-12">
-            {watches.map((watch) => (
-              <div 
-                key={watch.id}
-                className="group flex flex-col bg-white border border-zinc-200 hover:border-zinc-900 transition-all duration-300"
+        {/* Stable Content Grid Container */}
+        <div className="w-full min-h-[580px] relative pt-12">
+          {loadingWatches ? (
+            <div className="w-full grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="animate-pulse border border-zinc-200 p-6 space-y-4 bg-white">
+                  <div className="aspect-square bg-zinc-100 rounded-sm" />
+                  <div className="h-4 bg-zinc-200 w-1/3" />
+                  <div className="h-6 bg-zinc-200 w-3/4" />
+                  <div className="h-4 bg-zinc-100 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : watches.length === 0 ? (
+            <div className="w-full h-[400px] flex flex-col items-center justify-center border border-dashed border-zinc-200 bg-[#fbfbfa] text-center p-8">
+              <span className="text-[11px] font-display font-bold uppercase tracking-[0.2em] text-orange-600 mb-2">
+                No Results Found
+              </span>
+              <p className="text-zinc-500 text-xs max-w-sm leading-relaxed mb-4">
+                No timepieces match "{searchQuery}". Try searching for specific movements like "Powermatic" or "Sellita", or switch category filters.
+              </p>
+              <button
+                onClick={() => { setSearchQuery(''); setActiveCategory('ALL'); }}
+                className="px-4 py-2 border border-zinc-300 text-xs font-display font-bold uppercase tracking-wider text-zinc-800 hover:border-zinc-950 transition"
               >
-                {/* Image Frame */}
-                <div className="relative aspect-square bg-[#f8f8f9] overflow-hidden p-8 flex items-center justify-center">
-                  <img 
-                    src={watch.imageUrl} 
-                    alt={watch.name}
-                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" 
-                  />
-                  {watch.badge && (
-                    <span className="absolute top-4 left-4 bg-zinc-950 text-white text-[10px] font-display font-bold uppercase tracking-widest px-2.5 py-1">
-                      {watch.badge}
-                    </span>
-                  )}
-                </div>
-
-                {/* Product Info */}
-                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                  <div>
-                    <div className="text-[11px] font-display font-semibold uppercase tracking-widest text-zinc-500">
-                      {watch.subCategory || 'Mechanical Caliber'}
-                    </div>
-                    <h3 className="font-display font-bold text-lg text-zinc-950 uppercase mt-1 group-hover:text-orange-600 transition">
-                      {watch.name}
-                    </h3>
-                    <div className="text-xs text-zinc-500 mt-2 space-y-1">
-                      {watch.specs?.movement && (
-                        <div><span className="font-medium text-zinc-700">Movement:</span> {String(watch.specs.movement)}</div>
-                      )}
-                      {(watch.specs?.diameter || watch.specs?.lugToLug) && (
-                        <div>
-                          <span className="font-medium text-zinc-700">Dimensions:</span> {String(watch.specs.diameter || '')} Ø {watch.specs.lugToLug ? `· ${String(watch.specs.lugToLug)} lug-to-lug` : ''}
-                        </div>
-                      )}
-                    </div>
+                Reset Catalog Filters
+              </button>
+            </div>
+          ) : (
+            <div className={`w-full grid sm:grid-cols-2 lg:grid-cols-3 gap-8 transition-opacity duration-200 ${isSearching ? 'opacity-50' : 'opacity-100'}`}>
+              {watches.map((watch) => (
+                <div 
+                  key={watch.id}
+                  className="group flex flex-col bg-white border border-zinc-200 hover:border-zinc-900 transition-all duration-300"
+                >
+                  <div className="relative aspect-square bg-[#f8f8f9] overflow-hidden p-8 flex items-center justify-center">
+                    <img 
+                      src={watch.imageUrl} 
+                      alt={watch.name}
+                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" 
+                    />
+                    {watch.badge && (
+                      <span className="absolute top-4 left-4 bg-zinc-950 text-white text-[10px] font-display font-bold uppercase tracking-widest px-2.5 py-1">
+                        {watch.badge}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
-                    <div className="font-display font-extrabold text-lg text-zinc-950">
-                      ${watch.price} <span className="text-xs font-normal text-zinc-500">{watch.currency}</span>
+                  <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="text-[11px] font-display font-semibold uppercase tracking-widest text-zinc-500">
+                        {watch.subCategory || 'Mechanical Caliber'}
+                      </div>
+                      <h3 className="font-display font-bold text-lg text-zinc-950 uppercase mt-1 group-hover:text-orange-600 transition">
+                        {watch.name}
+                      </h3>
+                      <div className="text-xs text-zinc-500 mt-2 space-y-1">
+                        {watch.specs?.movement && (
+                          <div><span className="font-medium text-zinc-700">Movement:</span> {String(watch.specs.movement)}</div>
+                        )}
+                        {(watch.specs?.diameter || watch.specs?.lugToLug) && (
+                          <div>
+                            <span className="font-medium text-zinc-700">Dimensions:</span> {String(watch.specs.diameter || '')} Ø {watch.specs.lugToLug ? `· ${String(watch.specs.lugToLug)} lug-to-lug` : ''}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setSelectedProduct(watch)}
-                        className="px-3 py-2 border border-zinc-300 text-zinc-700 hover:border-zinc-950 hover:text-zinc-950 text-xs font-display font-bold uppercase tracking-wider transition"
-                      >
-                        Specs
-                      </button>
-                      <button 
-                        onClick={() => addItem(watch)}
-                        className="px-4 py-2 bg-zinc-950 hover:bg-orange-600 text-white text-xs font-display font-bold uppercase tracking-wider transition flex items-center gap-1.5"
-                      >
-                        Buy Now
-                      </button>
+                    <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+                      <div className="font-display font-extrabold text-lg text-zinc-950">
+                        ${watch.price} <span className="text-xs font-normal text-zinc-500">{watch.currency}</span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setSelectedProduct(watch)}
+                          className="px-3 py-2 border border-zinc-300 text-zinc-700 hover:border-zinc-950 hover:text-zinc-950 text-xs font-display font-bold uppercase tracking-wider transition"
+                        >
+                          Specs
+                        </button>
+                        <button 
+                          onClick={() => addItem(watch)}
+                          className="px-4 py-2 bg-zinc-950 hover:bg-orange-600 text-white text-xs font-display font-bold uppercase tracking-wider transition flex items-center gap-1.5"
+                        >
+                          Buy Now
+                        </button>
+                      </div>
                     </div>
+
                   </div>
-
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
       </section>
 
