@@ -85,15 +85,40 @@ export default function App() {
       <div className="min-h-screen bg-white text-zinc-900 flex flex-col">
         
         {/* 1. Global Utility Bar */}
-        <div className="bg-zinc-950 text-zinc-400 text-[11px] font-semibold tracking-widest uppercase py-2 px-6 border-b border-zinc-800">
+        <div className="bg-zinc-950 text-zinc-400 text-[11px] font-semibold tracking-widest uppercase py-2.5 px-6 border-b border-zinc-800">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <span className="text-white">Canada / CAD ($)</span>
+              
+              {/* Canada Flag & Currency Badge - Aligned & Proportioned */}
+              <div className="inline-flex items-center gap-2">
+                <svg
+                  viewBox="0 0 64 32"
+                  className="w-5 h-[11px] aspect-[2/1] rounded-[1px] shadow-xs border border-zinc-700/80 shrink-0 self-center"
+                  aria-hidden="true"
+                >
+                  {/* Red Side Bands */}
+                  <rect width="16" height="32" fill="#D80027" />
+                  <rect x="48" width="16" height="32" fill="#D80027" />
+                  {/* White Center Square */}
+                  <rect x="16" width="32" height="32" fill="#FFFFFF" />
+                  
+                  {/* 11-point Canadian Maple Leaf */}
+                  <path
+                    d="M32 5.5
+                       l1.6 4.9 3.3-.9-1.5 3.3 4.2.4-2.6 2.8 3.5 2.2-5.1.9 1.1 4.4-3.7-2.2-.9 4.8h-1.8l-.9-4.8-3.7 2.2 1.1-4.4-5.1-.9 3.5-2.2-2.6-2.8 4.2-.4-1.5-3.3 3.3.9L32 5.5z"
+                    fill="#D80027"
+                  />
+                </svg>
+
+                <span className="text-white tracking-wider leading-none">Canada / CAD ($)</span>
+              </div>
+
               <span className="text-zinc-600">|</span>
-              <span className="text-orange-500">Official Canadian Atelier</span>
+              <span className="text-orange-500 leading-none">Official Canadian Atelier</span>
             </div>
+
             <div className="flex items-center gap-6">
-              <span className="hidden sm:inline">Complimentary Expedited Shipping & 30-Day Returns</span>
+              <span className="hidden sm:inline">Complimentary Expedited Shipping &amp; 30-Day Returns</span>
               <button 
                 onClick={() => openAuth('Collector Vault', 'Sign in to access your digital watch box, trades, and private events.')}
                 className="hover:text-white transition flex items-center gap-1.5"
