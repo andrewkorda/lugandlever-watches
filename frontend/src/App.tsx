@@ -1,50 +1,48 @@
 import { useEffect, useState } from 'react';
 import { Logo } from './components/Logo';
+import { ProductCarousel, type CarouselTab } from './components/ProductCarousel';
 import { 
-  ArrowRight, 
   Lock, 
   ShieldCheck, 
   RotateCcw, 
   Clock, 
   Compass, 
-  ShoppingBag,
-  Search,
-  User,
-  X,
-  Play
+  ShoppingBag, 
+  Search, 
+  User, 
+  X, 
+  Play 
 } from 'lucide-react';
 
 import { fetchCatalog, type Product } from './services/catalogService';
 import { useCart } from './features/cart/CartContext';
 import { CartDrawer } from './features/cart/CartDrawer';
 
-import { WatchCarousel, type WatchFilterType } from './components/WatchCarousel';
+// Tab Definitions
+type WatchFilterType = 'FEATURED' | 'BEST_SELLERS' | 'COMMUNITY_VAULT';
+type GearFilterType = 'FEATURED' | 'BEST_SELLERS';
 
-// 1. Move hook outside the component so it complies with React's Rules of Hooks
-// function useDebounce<T>(value: T, delay: number = 300): T {
-//   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-//   useEffect(() => {
-//     const handler = setTimeout(() => setDebouncedValue(value), delay);
-//     return () => clearTimeout(handler);
-//   }, [value, delay]);
-//   return debouncedValue;
-// }
+const WATCH_TABS: CarouselTab<WatchFilterType>[] = [
+  { id: 'FEATURED', label: 'FEATURED' },
+  { id: 'BEST_SELLERS', label: 'BEST SELLERS' },
+  { id: 'COMMUNITY_VAULT', label: 'COMMUNITY VAULT' },
+];
+
+const GEAR_TABS: CarouselTab<GearFilterType>[] = [
+  { id: 'FEATURED', label: 'FEATURED' },
+  { id: 'BEST_SELLERS', label: 'BEST SELLERS' },
+];
 
 export default function App() {
-  // const [activeCategory, setActiveCategory] = useState<'ALL' | 'FIELD' | 'DIVER' | 'CHRONO'>('ALL');
-  // const [searchQuery, setSearchQuery] = useState('');
-
-  // Debounce user keystrokes by 300ms
-  // const debouncedQuery = useDebounce(searchQuery, 300);
-
-  // Dynamic Catalog State
+  // 1. Timepieces State
   const [watchFilter, setWatchFilter] = useState<WatchFilterType>('FEATURED');
   const [watches, setWatches] = useState<Product[]>([]);
   const [loadingWatches, setLoadingWatches] = useState(true);
-  const [accessories, setAccessories] = useState<Product[]>([]);
-  // const [loadingWatches, setLoadingWatches] = useState(true);
-  const [loadingAccessories, setLoadingAccessories] = useState(true);
-  // const [isSearching, setIsSearching] = useState(false);
+
+  // 2. Straps & Gear State
+  const [gearFilter, setGearFilter] = useState<GearFilterType>('FEATURED');
+  const [gear, setGear] = useState<Product[]>([]);
+  const [loadingGear, setLoadingGear] = useState(true);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; title: string; subtitle: string }>({
@@ -53,52 +51,36 @@ export default function App() {
     subtitle: ''
   });
 
-  // Cart Drawer Actions
   const { addItem, openCart, itemCount } = useCart();
 
   const openAuth = (title: string, subtitle: string) => {
     setAuthModal({ open: true, title, subtitle });
   };
 
-  // Fetch Watches dynamically when category or debounced search changes
-  // useEffect(() => {
-  //   setIsSearching(true);
-  //   fetchCatalog('WATCH', activeCategory, debouncedQuery)
-  //     .then((data) => setWatches(data))
-  //     .catch((err) => console.error('Failed to load watches:', err))
-  //     .finally(() => {
-  //       setLoadingWatches(false);
-  //       setIsSearching(false);
-  //     });
-  // }, [activeCategory, debouncedQuery]);
-
-  // Fetch watches according to the selected filter
+  // Fetch Watches (Filtered by collection)
   useEffect(() => {
     setLoadingWatches(true);
     fetchCatalog('WATCH', undefined, undefined, watchFilter)
       .then((data) => setWatches(data))
-      .catch((err) => console.error('Failed to load watches:', err))
+      .catch(console.error)
       .finally(() => setLoadingWatches(false));
   }, [watchFilter]);
 
-  // Fetch Straps & Accessories once on mount
+  // Fetch Straps & Gear (Filtered by collection)
   useEffect(() => {
-    setLoadingAccessories(true);
+    setLoadingGear(true);
     Promise.all([
-      fetchCatalog('STRAP'),
-      fetchCatalog('ACCESSORY')
+      fetchCatalog('STRAP', undefined, undefined, gearFilter),
+      fetchCatalog('ACCESSORY', undefined, undefined, gearFilter)
     ])
-      .then(([straps, gear]) => setAccessories([...straps, ...gear]))
-      .catch((err) => console.error('Failed to load accessories:', err))
-      .finally(() => setLoadingAccessories(false));
-  }, []);
-
-  // (Delete lines 66-73 where useDebounce was nested inside App)
+      .then(([straps, accessories]) => setGear([...straps, ...accessories]))
+      .catch(console.error)
+      .finally(() => setLoadingGear(false));
+  }, [gearFilter]);
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 flex flex-col">
-      
-      {/* 1. Global Utility Bar */}
+      {/* 1. Global Utility Bar (Unchanged) */}
       <div className="bg-zinc-950 text-zinc-400 text-[11px] font-semibold tracking-widest uppercase py-2 px-6 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -119,18 +101,15 @@ export default function App() {
         </div>
       </div>
 
-      {/* 2. Main Navigation Header */}
+      {/* 2. Navigation Header (Unchanged) */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-zinc-200">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          
-          {/* Brand Logo */}
           <div className="flex items-center gap-3">
             <a href="#" className="flex items-center">
               <Logo className="h-10" />
             </a>
           </div>
 
-          {/* Navigation Links */}
           <nav className="hidden lg:flex items-center gap-8 text-[12px] font-display font-bold tracking-[0.15em] uppercase text-zinc-800">
             <a href="#timepieces" className="hover:text-orange-600 transition">Watches</a>
             <a href="#straps" className="hover:text-orange-600 transition">Straps & Accessories</a>
@@ -144,38 +123,35 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Action Icons */}
           <div className="flex items-center gap-5 text-zinc-800">
-              {/* Global Site Search Trigger */}
-              <button 
-                onClick={() => openAuth('Site Search', 'Global site discovery for articles, meetup schedules, and archive documentation is coming soon.')}
-                className="hover:text-orange-600 transition"
-                aria-label="Search website"
-              >
-                <Search className="w-5 h-5" />
-              </button>
-
-              <button 
-                onClick={() => openAuth('Customer Account', 'Sign in to review purchase history and track warranty certificates.')}
-                className="hover:text-orange-600 transition flex items-center gap-1.5"
-              >
-                <User className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={openCart}
-                className="hover:text-orange-600 transition relative"
-                aria-label="View acquisition bag"
-              >
-                <ShoppingBag className="w-5 h-5" />
-                <span className="absolute -top-1.5 -right-2 bg-orange-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {itemCount}
-                </span>
-              </button>
-            </div>
+            <button 
+              onClick={() => openAuth('Site Search', 'Global site discovery for articles, meetup schedules, and archive documentation is coming soon.')}
+              className="hover:text-orange-600 transition"
+              aria-label="Search website"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => openAuth('Customer Account', 'Sign in to review purchase history and track warranty certificates.')}
+              className="hover:text-orange-600 transition flex items-center gap-1.5"
+            >
+              <User className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={openCart}
+              className="hover:text-orange-600 transition relative"
+              aria-label="View acquisition bag"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span className="absolute -top-1.5 -right-2 bg-orange-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {itemCount}
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* 3. Hero Banner (Cinematic Autoplay Background Video) */}
+      {/* 3. Hero Banner (Unchanged) */}
       <section className="relative bg-zinc-950 text-white min-h-[560px] lg:min-h-[660px] flex items-center overflow-hidden border-b border-zinc-800">
         <div className="absolute inset-0 z-0">
           <video
@@ -189,8 +165,6 @@ export default function App() {
             <source src="/hero-video-orange.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
-
-          {/* Dual Vignette & Text Contrast Gradient */}
           <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/70 to-transparent pointer-events-none" />
           <div className="absolute inset-0 bg-zinc-950/20 pointer-events-none" />
         </div>
@@ -215,7 +189,7 @@ export default function App() {
                 href="#timepieces" 
                 className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white transition flex items-center gap-2"
               >
-                Discover Collection <ArrowRight className="w-4 h-4" />
+                Discover Collection
               </a>
               <button 
                 onClick={() => {
@@ -231,7 +205,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* 4. Value Proposition Strip */}
+      {/* 4. Value Proposition Strip (Unchanged) */}
       <section className="bg-zinc-100 border-b border-zinc-200 py-6">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-zinc-800">
           <div className="flex items-center gap-3">
@@ -265,72 +239,40 @@ export default function App() {
         </div>
       </section>
 
-      {/* 5. Timepieces Catalog Carousel */}
-      <WatchCarousel
-        watches={watches}
-        activeFilter={watchFilter}
-        onFilterChange={setWatchFilter}
+      {/* 5. Primary Timepieces Carousel */}
+      
+
+<ProductCarousel
+        id="timepieces"
+        eyebrow="The Catalog"
+        title="Timepieces"
+        tabs={WATCH_TABS}
+        activeTab={watchFilter}
+        onTabChange={setWatchFilter}
+        items={watches}
+        loading={loadingWatches}
         onViewSpecs={setSelectedProduct}
         onAcquire={addItem}
-        loading={loadingWatches}
+        backgroundColor="white"
       />
+
+      {/* 6. Modular Versatility: Straps & Travel Gear Carousel */}
       
-      {/* 6. Straps & Accessories Showcase */}
-      <section id="straps" className="bg-zinc-100 py-20 border-t border-b border-zinc-200">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="max-w-xl mb-12">
-            <span className="text-[11px] font-display font-bold uppercase tracking-[0.2em] text-orange-600">
-              Modular Versatility
-            </span>
-            <h2 className="font-display font-black text-3xl uppercase tracking-tight text-zinc-950 mt-1">
-              Straps & Travel Gear
-            </h2>
-            <p className="text-xs text-zinc-600 mt-2">
-              Transform the character of your watch with our precision quick-release leather, canvas, and travel rolls.
-            </p>
-          </div>
 
-          {loadingAccessories ? (
-            <div className="grid md:grid-cols-2 gap-8">
-              {[1, 2].map((n) => (
-                <div key={n} className="animate-pulse bg-white border border-zinc-200 h-48" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-8">
-              {accessories.map(item => (
-                <div key={item.id} className="bg-white border border-zinc-200 flex flex-col sm:flex-row overflow-hidden group">
-                  <div className="sm:w-1/2 aspect-square bg-[#f8f8f9] p-4 flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={item.imageUrl} 
-                      alt={item.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                    />
-                  </div>
-                  <div className="sm:w-1/2 p-6 flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-display font-bold uppercase tracking-widest text-zinc-400">Atelier Accessory</span>
-                      <h4 className="font-display font-bold text-base uppercase text-zinc-950 mt-1">{item.name}</h4>
-                      <p className="text-xs text-zinc-500 mt-2">{item.shortDescription}</p>
-                    </div>
-                    <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
-                      <span className="font-display font-bold text-base text-zinc-950">${item.price} {item.currency}</span>
-                      <button 
-                        onClick={() => addItem(item, item.category === 'STRAP' ? '20mm' : undefined)}
-                        className="text-xs font-display font-bold uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center gap-1"
-                      >
-                        Acquire <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+<ProductCarousel
+        id="straps"
+        eyebrow="Modular Versatility"
+        title="Straps & Travel Gear"
+        tabs={GEAR_TABS}
+        activeTab={gearFilter}
+        onTabChange={setGearFilter}
+        items={gear}
+        loading={loadingGear}
+        onAcquire={(item) => addItem(item, item.category === 'STRAP' ? '20mm' : undefined)}
+        backgroundColor="zinc-100"
+      />
 
-      {/* 7. Collector's Vault Velvet Rope Banner */}
+      {/* 7. Collector's Vault Section (Unchanged) */}
       <section id="heritage" className="bg-zinc-950 text-white py-24 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 relative z-10 grid lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-7 space-y-6">
@@ -383,11 +325,9 @@ export default function App() {
         </div>
       </section>
 
-      {/* 8. Global Brand Footer */}
+      {/* 8. Global Brand Footer (Unchanged) */}
       <footer className="bg-zinc-950 text-zinc-400 text-xs py-16 border-t border-zinc-800">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
-          
-          {/* Brand Mark Column */}
           <div className="lg:col-span-2 space-y-4">
             <Logo className="h-16" light={true} />
             <p className="text-[12px] leading-relaxed text-zinc-400 max-w-sm pt-2">
@@ -398,7 +338,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Column 1: Timepieces */}
           <div>
             <div className="font-display font-bold text-white text-xs uppercase tracking-widest mb-4">Timepieces</div>
             <ul className="space-y-2 text-[11px]">
@@ -409,7 +348,6 @@ export default function App() {
             </ul>
           </div>
 
-          {/* Column 2: Customer Care */}
           <div>
             <div className="font-display font-bold text-white text-xs uppercase tracking-widest mb-4">Customer Care</div>
             <ul className="space-y-2 text-[11px]">
@@ -420,7 +358,6 @@ export default function App() {
             </ul>
           </div>
 
-          {/* Column 3: Collector's Exchange */}
           <div>
             <div className="font-display font-bold text-white text-xs uppercase tracking-widest mb-4">Collector's Vault</div>
             <ul className="space-y-2 text-[11px]">
@@ -429,10 +366,8 @@ export default function App() {
               <li><button onClick={() => openAuth('Local Meets', 'Login required.')} className="hover:text-white transition">Ontario Meetup Schedule</button></li>
             </ul>
           </div>
-
         </div>
 
-        {/* Bottom Bar */}
         <div className="max-w-7xl mx-auto px-6 pt-12 mt-12 border-t border-zinc-900 text-[10px] text-zinc-500 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>© {new Date().getFullYear()} Lug & Lever Horology Inc. All rights reserved.</div>
           <div className="flex gap-6">
@@ -443,7 +378,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Modal: Technical Specification Dossier */}
+      {/* Modals & Cart Drawer (Unchanged) */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
           <div className="bg-white border border-zinc-300 max-w-lg w-full p-8 relative shadow-2xl">
@@ -495,7 +430,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Modal: Customer & Member Authentication Gate */}
       {authModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/85 backdrop-blur-sm">
           <div className="bg-white border border-zinc-300 max-w-sm w-full p-8 relative shadow-2xl">
@@ -552,9 +486,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 9. Slide-Out Acquisition Bag */}
       <CartDrawer />
-
     </div>
   );
 }

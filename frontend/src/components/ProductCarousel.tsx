@@ -1,35 +1,43 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import type { Product } from '../services/catalogService';
 
-export type WatchFilterType = 'FEATURED' | 'BEST SELLERS' | 'COMMUNITY VAULT';
-
-interface WatchCarouselProps {
-  watches: Product[];
-  activeFilter: WatchFilterType;
-  onFilterChange: (filter: WatchFilterType) => void;
-  onViewSpecs: (product: Product) => void;
-  onAcquire: (product: Product) => void;
-  loading?: boolean;
+export interface CarouselTab<T extends string = string> {
+  id: T;
+  label: string;
 }
 
-const FILTERS: { id: WatchFilterType; label: string }[] = [
-  { id: 'FEATURED', label: 'FEATURED' },
-  { id: 'BEST SELLERS', label: 'BEST SELLERS' },
-  { id: 'COMMUNITY VAULT', label: 'COMMUNITY VAULT' },
-];
+interface ProductCarouselProps<T extends string = string> {
+  id: string;
+  eyebrow: string;
+  title: string;
+  tabs: CarouselTab<T>[];
+  activeTab: T;
+  onTabChange: (tabId: T) => void;
+  items: Product[];
+  loading?: boolean;
+  onViewSpecs?: (product: Product) => void;
+  onAcquire: (product: Product) => void;
+  backgroundColor?: 'white' | 'zinc-100';
+  emptyMessage?: string;
+}
 
-export function WatchCarousel({
-  watches,
-  activeFilter,
-  onFilterChange,
+export function ProductCarousel<T extends string = string>({
+  id,
+  eyebrow,
+  title,
+  tabs,
+  activeTab,
+  onTabChange,
+  items,
+  loading = false,
   onViewSpecs,
   onAcquire,
-  loading = false,
-}: WatchCarouselProps) {
+  backgroundColor = 'white',
+  emptyMessage = 'No allocations listed under this category.',
+}: ProductCarouselProps<T>) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Track scroll indicator position & width
+
   const [thumbWidth, setThumbWidth] = useState(25);
   const [thumbLeft, setThumbLeft] = useState(0);
 
@@ -46,7 +54,6 @@ export function WatchCarousel({
       return;
     }
 
-    // Indicator bar represents the visible viewport fraction
     const visibleRatio = Math.max(Math.min(clientWidth / scrollWidth, 1), 0.15);
     const calculatedWidth = visibleRatio * 100;
     const progress = Math.min(Math.max(scrollLeft / maxScroll, 0), 1);
@@ -61,7 +68,6 @@ export function WatchCarousel({
     const el = scrollContainerRef.current;
     if (!el) return;
 
-    // Reset scroll position on filter switch
     if (typeof el.scrollTo === 'function') {
       el.scrollTo({ left: 0, behavior: 'smooth' });
     } else {
@@ -70,12 +76,13 @@ export function WatchCarousel({
 
     window.addEventListener('resize', updateProgress);
     return () => window.removeEventListener('resize', updateProgress);
-  }, [watches, activeFilter, updateProgress]);
+  }, [items, activeTab, updateProgress]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
     const cardWidth = 320;
     const el = scrollContainerRef.current;
+
     if (typeof el.scrollBy === 'function') {
       el.scrollBy({
         left: direction === 'left' ? -cardWidth : cardWidth,
@@ -86,28 +93,34 @@ export function WatchCarousel({
     }
   };
 
+  const bgClasses =
+    backgroundColor === 'zinc-100'
+      ? 'bg-zinc-100 border-t border-b border-zinc-200'
+      : 'bg-white';
+
   return (
-    <section id="timepieces" className="w-full bg-white py-20 select-none">
+    <section id={id} className={`w-full ${bgClasses} py-20 select-none`}>
       <div className="w-full max-w-7xl mx-auto px-6">
         
-        {/* 1. Header with Catalog Title & Minimalist Underline Tabs */}
+        {/* Header Toolbar */}
         <div className="w-full flex flex-col md:flex-row md:items-end justify-between border-b border-zinc-200 pb-4 gap-6">
           <div className="shrink-0">
             <span className="text-[11px] font-display font-bold uppercase tracking-[0.2em] text-orange-600 block">
-              The Catalog
+              {eyebrow}
             </span>
             <h2 className="font-display font-black text-3xl uppercase tracking-tight text-zinc-950 mt-1">
-              Timepieces
+              {title}
             </h2>
           </div>
 
+          {/* Underlined Minimalist Navigation Tabs */}
           <div className="flex items-center gap-8 overflow-x-auto scrollbar-none">
-            {FILTERS.map((tab) => {
-              const isActive = activeFilter === tab.id;
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => onFilterChange(tab.id)}
+                  onClick={() => onTabChange(tab.id)}
                   className={`relative pb-3 text-xs font-display font-bold tracking-[0.18em] uppercase transition whitespace-nowrap ${
                     isActive ? 'text-zinc-950' : 'text-zinc-400 hover:text-zinc-700'
                   }`}
@@ -122,9 +135,8 @@ export function WatchCarousel({
           </div>
         </div>
 
-        {/* 2. Carousel Stage */}
+        {/* Carousel Stage */}
         <div className="relative group/carousel mt-10">
-          
           <button
             onClick={() => scroll('left')}
             aria-label="Previous slide"
@@ -160,72 +172,76 @@ export function WatchCarousel({
                   <div className="h-4 bg-zinc-100 w-1/2" />
                 </div>
               ))
-            ) : watches.length === 0 ? (
+            ) : items.length === 0 ? (
               <div className="w-full h-80 flex flex-col items-center justify-center text-center p-8 bg-[#fbfbfa] border border-dashed border-zinc-200">
                 <span className="text-[11px] font-display font-bold uppercase tracking-[0.2em] text-orange-600 mb-2">
                   No Allocations Listed
                 </span>
-                <p className="text-zinc-500 text-xs">
-                  No timepieces currently listed under {activeFilter}.
-                </p>
+                <p className="text-zinc-500 text-xs">{emptyMessage}</p>
               </div>
             ) : (
-              watches.map((watch) => (
+              items.map((item) => (
                 <div
-                  key={watch.id}
+                  key={item.id}
                   className="w-[280px] sm:w-[320px] shrink-0 flex flex-col bg-white border border-zinc-200 hover:border-zinc-900 transition-all duration-300 group"
                   style={{ scrollSnapAlign: 'start' }}
                 >
+                  {/* Clean Hamilton Pedestal Image Box */}
                   <div className="relative aspect-square bg-[#f8f8f9] p-8 flex items-center justify-center overflow-hidden">
                     <img
-                      src={watch.imageUrl}
-                      alt={watch.name}
+                      src={item.imageUrl}
+                      alt={item.name}
                       className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500"
                     />
-                    {watch.badge && (
+                    {item.badge && (
                       <span className="absolute top-3 left-3 bg-zinc-950 text-white text-[9px] font-display font-bold uppercase tracking-widest px-2 py-0.5">
-                        {watch.badge}
+                        {item.badge}
                       </span>
                     )}
                   </div>
 
+                  {/* Metadata Content */}
                   <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
                     <div>
-                      {watch.specs?.diameter && (
+                      {item.specs?.diameter && (
                         <span className="text-[10px] font-semibold tracking-wider text-orange-600 uppercase block">
-                          Ø {String(watch.specs.diameter)}
+                          Ø {String(item.specs.diameter)}
                         </span>
                       )}
                       <h3 className="font-display font-bold text-sm text-zinc-950 uppercase mt-0.5 group-hover:text-orange-600 transition leading-snug">
-                        {watch.name}
+                        {item.name}
                       </h3>
-                      {watch.specs?.movement && (
-                        <p className="text-[11px] text-zinc-500 mt-1 line-clamp-1">
-                          {String(watch.specs.movement)}
+                      {item.shortDescription && (
+                        <p className="text-[11px] text-zinc-500 mt-1 line-clamp-2 leading-relaxed">
+                          {item.shortDescription}
                         </p>
                       )}
                     </div>
 
+                    {/* Price and Actions */}
                     <div className="pt-3 border-t border-zinc-100 flex items-center justify-between">
                       <div className="font-display font-extrabold text-sm text-zinc-950">
-                        ${watch.price}{' '}
+                        ${item.price}{' '}
                         <span className="text-[10px] font-normal text-zinc-500">
-                          {watch.currency}
+                          {item.currency}
                         </span>
                       </div>
 
                       <div className="flex gap-1.5">
+                        {onViewSpecs && (
+                          <button
+                            onClick={() => onViewSpecs(item)}
+                            className="px-2.5 py-1.5 border border-zinc-300 text-zinc-700 hover:border-zinc-950 hover:text-zinc-950 text-[11px] font-display font-bold uppercase tracking-wider transition"
+                          >
+                            Specs
+                          </button>
+                        )}
                         <button
-                          onClick={() => onViewSpecs(watch)}
-                          className="px-2.5 py-1.5 border border-zinc-300 text-zinc-700 hover:border-zinc-950 hover:text-zinc-950 text-[11px] font-display font-bold uppercase tracking-wider transition"
-                        >
-                          Specs
-                        </button>
-                        <button
-                          onClick={() => onAcquire(watch)}
-                          className="px-3 py-1.5 bg-zinc-950 hover:bg-orange-600 text-white text-[11px] font-display font-bold uppercase tracking-wider transition"
+                          onClick={() => onAcquire(item)}
+                          className="px-3 py-1.5 bg-zinc-950 hover:bg-orange-600 text-white text-[11px] font-display font-bold uppercase tracking-wider transition flex items-center gap-1"
                         >
                           Acquire
+                          {!onViewSpecs && <ArrowRight className="w-3 h-3" />}
                         </button>
                       </div>
                     </div>
@@ -236,15 +252,15 @@ export function WatchCarousel({
           </div>
         </div>
 
-        {/* 3. Synchronized Scroll Progress Track (Hamilton Style) */}
-        {!loading && watches.length > 0 && (
+        {/* Synchronized Progress Track */}
+        {!loading && items.length > 0 && (
           <div className="w-full mt-8 pt-2">
-            <div 
-              data-testid="carousel-progress-track"
+            <div
+              data-testid={`${id}-progress-track`}
               className="w-full h-[2px] bg-zinc-200 relative overflow-hidden"
             >
               <div
-                data-testid="carousel-progress-thumb"
+                data-testid={`${id}-progress-thumb`}
                 className="h-full bg-zinc-950 absolute top-0 transition-all duration-150 ease-out"
                 style={{
                   width: `${thumbWidth}%`,
