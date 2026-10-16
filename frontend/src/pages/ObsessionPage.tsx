@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom';
 import { 
   ShieldCheck, 
-  RotateCcw, 
-  Clock, 
-  Compass, 
   ArrowRight, 
   Cpu, 
   CheckCircle2, 
