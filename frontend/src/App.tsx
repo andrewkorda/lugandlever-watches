@@ -19,6 +19,7 @@ import {
 import { fetchCatalog, type Product } from './services/catalogService';
 import { useCart } from './features/cart/CartContext';
 import { CartDrawer } from './features/cart/CartDrawer';
+import { ObsessionPage } from './pages/ObsessionPage';
 
 // Tab Definitions for Homepage
 type WatchFilterType = 'FEATURED' | 'BEST_SELLERS' | 'COMMUNITY_VAULT';
@@ -133,9 +134,14 @@ export default function App() {
                 Straps &amp; Accessories
               </NavLink>
 
-              <a href="/#heritage" className="hover:text-orange-600 transition">
+              <NavLink 
+                to="/obsession" 
+                className={({ isActive }) => 
+                  `transition ${isActive ? 'text-orange-600 font-extrabold border-b-2 border-orange-600 pb-1' : 'hover:text-orange-600'}`
+                }
+              >
                 Our Obsession
-              </a>
+              </NavLink>
 
               <button 
                 onClick={() => openAuth('The Enthusiast Register', 'Access verified private collector vaults and local meetup rosters.')}
@@ -373,6 +379,9 @@ export default function App() {
               />
             }
           />
+          
+          {/* OUR OBSESSION STORY */}
+          <Route path="/obsession" element={<ObsessionPage />} />
         </Routes>
 
         {/* 4. Global Brand Footer */}
@@ -401,6 +410,7 @@ export default function App() {
             <div>
               <div className="font-display font-bold text-white text-xs uppercase tracking-widest mb-4">Customer Care</div>
               <ul className="space-y-2 text-[11px]">
+                <li><Link to="/obsession" className="hover:text-white transition">Our Obsession &amp; Standards</Link></li>
                 <li><a href="#" className="hover:text-white transition">Warranty &amp; Regulation</a></li>
                 <li><a href="#" className="hover:text-white transition">Shipping &amp; 30-Day Returns</a></li>
                 <li><a href="#" className="hover:text-white transition">Service &amp; Overhauls</a></li>
