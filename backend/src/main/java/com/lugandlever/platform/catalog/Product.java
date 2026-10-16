@@ -47,6 +47,15 @@ public class Product {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> specs;
 
+    @Column(name = "is_featured", nullable = false)
+    private Boolean isFeatured = false;
+
+    @Column(name = "is_best_seller", nullable = false)
+    private Boolean isBestSeller = false;
+
+    @Column(name = "is_vault_item", nullable = false)
+    private Boolean isVaultItem = false;
+
     // Getters and helper for frontend dollar display
     public UUID getId() { return id; }
     public String getSlug() { return slug; }
@@ -60,4 +69,7 @@ public class Product {
     public String getImageUrl() { return imageUrl; }
     public Boolean getInStock() { return inStock; }
     public Map<String, Object> getSpecs() { return specs; }
+    public Boolean getIsFeatured() { return isFeatured; }
+    public Boolean getIsBestSeller() { return isBestSeller; }
+    public Boolean getIsVaultItem() { return isVaultItem; }
 }
